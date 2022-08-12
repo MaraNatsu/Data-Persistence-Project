@@ -2,6 +2,7 @@ using Assets.Scripts.Helpers;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -17,11 +18,12 @@ public class MainManager : MonoBehaviour
     public GameObject GameOverText;
 
     private string _userName;
-    private string _path = @"D:\GIT\Unity\Unity Learn - Junior Programmer\Manage scene flow and data\Data-Persistence-Project-";
+    private string _path = @"D:\GIT\Unity\Unity Learn - Junior Programmer\Manage scene flow and data\Data-Persistence-Project";
     private string _jsonName = @"\highscore";
 
     private int _score;
-    private ScoreStorage _prevRecord;
+    private ScoreStorage _prevBestScore;
+    private RatingStorage _prevRating;
     private bool _isGameStarted = false;
     private bool _isGameOver = false;
 
@@ -89,32 +91,46 @@ public class MainManager : MonoBehaviour
         }
     }
 
+    [System.Serializable]
+    class RatingStorage
+    {
+        public List<ScoreStorage> rating = new List<ScoreStorage>();
+    }
+
     void LoadHighScore()
     {
         string path = _path + _jsonName;
         //string path = Application.persistentDataPath + _jsonName + ".json";
 
-        if (File.Exists(path))
+        if (File.Exists(path) && File.ReadAllText(path).Length > 0)
         {
             string json = File.ReadAllText(path);
-            _prevRecord = JsonUtility.FromJson<ScoreStorage>(json);
-            HighScoreText.text = $"Best score: {_prevRecord.userName} - {_prevRecord.userScore}";
+            _prevRating = JsonUtility.FromJson<RatingStorage>(json);
+            _prevBestScore = _prevRating.rating[0];
+            HighScoreText.text = $"Best score: {_prevBestScore.userName} - {_prevBestScore.userScore}";
         }
         else
         {
-            HighScoreText.text = "Best score: Good luck!";
+            _prevRating = new RatingStorage();
+            HighScoreText.text = "Best score: can be yours!";
         }
     }
 
     void RecordHighScore()
     {
-        if (_prevRecord != null && (_score < _prevRecord.userScore))
+        ScoreStorage newScore = new ScoreStorage(_userName, _score);
+
+        if (_prevBestScore != null && (_prevBestScore.userScore < _score))
         {
-            return;
+            _prevRating.rating.Insert(0, newScore);
+        }
+        else
+        {
+            _prevRating.rating.Add(newScore);
+            _prevRating.rating = _prevRating.rating.OrderByDescending(x => x.userScore).ToList();
         }
 
-        ScoreStorage scoreRecording = new ScoreStorage(_userName, _score);
-        string json = JsonUtility.ToJson(scoreRecording);
+        string json = JsonUtility.ToJson(_prevRating);
         File.WriteAllText(_path + _jsonName, json);
     }
 
