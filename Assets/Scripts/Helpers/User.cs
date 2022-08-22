@@ -8,11 +8,29 @@ namespace Assets.Scripts.Helpers
 {
     public class User
     {
-        public static string Name { get; private set; }
+        private static User _instance;
 
-        public static void SaveName(string name)
+        public string Name { get; set; }
+        public int Score { get; private set; } = 0;
+
+        public static User GetInstance()
         {
-            Name = name;
+            if (_instance == null)
+            {
+                _instance = new User();
+            }
+
+            return _instance;
+        }
+
+        public void IncreaseScore(int value)
+        {
+            Score += value;
+        }
+
+        public void ResetScore()
+        {
+            Score = 0;
         }
     }
 }

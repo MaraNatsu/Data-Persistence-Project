@@ -27,12 +27,14 @@ public class MenuManager : MonoBehaviour
         else
         {
             SceneManager.LoadScene(1);
+            MainManager.IsGameActive = true;
         }
     }
 
     public void SaveName()
     {
-        User.SaveName(_userNameInput.text);
+        User user = User.GetInstance();
+        user.Name = _userNameInput.text;
     }
 
     public void Exit()

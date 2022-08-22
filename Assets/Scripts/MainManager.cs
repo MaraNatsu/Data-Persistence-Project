@@ -1,43 +1,39 @@
 using Assets.Scripts.Helpers;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainManager : MonoBehaviour
 {
+    public static bool IsGameActive { get; set; } = false;
+
     public Brick BrickPrefab;
     public int LineCount = 6;
     public Rigidbody Ball;
 
-    public Text HighScoreText;
     public Text ScoreText;
     public GameObject GameOverText;
 
-    private string _userName;
-    private string _path = @"D:\GIT\Unity\Unity Learn - Junior Programmer\Manage scene flow and data\Data-Persistence-Project";
-    private string _jsonName = @"\highscore";
+    private User _user;
 
-    private int _score;
-    private ScoreStorage _prevBestScore;
-    private RatingStorage _prevRating;
-    private bool _isGameStarted = false;
-    private bool _isGameOver = false;
+    //private bool _isGameOver = false;
+    private BestScoreManager _scoreManager;
 
 
     private void Awake()
     {
-        _userName = User.Name;
-        ScoreText.text = $"{_userName} score: " + _score;
-        LoadHighScore();
+        _user = User.GetInstance();
+        _scoreManager = BestScoreManager.Instance;
+        ScoreText.text = $"{_user.Name} score: " + _user.Score;
     }
 
     // Start is called before the first frame update
     void Start()
     {
+        GameObject parent = new GameObject();
+        parent.name = "Bricks";
+        Instantiate(parent, Vector3.zero, Quaternion.identity);
+
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
 
@@ -47,20 +43,24 @@ public class MainManager : MonoBehaviour
             for (int x = 0; x < perLine; ++x)
             {
                 Vector3 position = new Vector3(-1.5f + step * x, 2.5f + i * 0.3f, 0);
-                var brick = Instantiate(BrickPrefab, position, Quaternion.identity);
+                var brick = Instantiate(BrickPrefab, position, Quaternion.identity, parent.transform);
                 brick.PointValue = pointCountArray[i];
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
+
+        parent.transform.localScale = new Vector3(.9f, .82f, 1);
     }
 
     private void Update()
     {
-        if (!_isGameStarted)
+        Ball.transform.localScale += Vector3.one;
+
+        if (IsGameActive)
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                _isGameStarted = true;
+                IsGameActive = true;
                 float randomDirection = Random.Range(-1.0f, 1.0f);
                 Vector3 forceDir = new Vector3(randomDirection, 1, 0);
                 forceDir.Normalize();
@@ -69,82 +69,28 @@ public class MainManager : MonoBehaviour
                 Ball.AddForce(forceDir * 2.0f, ForceMode.VelocityChange);
             }
         }
-        else if (_isGameOver)
+        else
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                _user.ResetScore();
+                IsGameActive = true;
             }
         }
     }
 
-    [System.Serializable]
-    class ScoreStorage
-    {
-        public string userName;
-        public int userScore;
-
-        public ScoreStorage(string name, int score)
-        {
-            userName = name;
-            userScore = score;
-        }
-    }
-
-    [System.Serializable]
-    class RatingStorage
-    {
-        public List<ScoreStorage> rating = new List<ScoreStorage>();
-    }
-
-    void LoadHighScore()
-    {
-        string path = _path + _jsonName;
-        //string path = Application.persistentDataPath + _jsonName + ".json";
-
-        if (File.Exists(path) && File.ReadAllText(path).Length > 0)
-        {
-            string json = File.ReadAllText(path);
-            _prevRating = JsonUtility.FromJson<RatingStorage>(json);
-            _prevBestScore = _prevRating.rating[0];
-            HighScoreText.text = $"Best score: {_prevBestScore.userName} - {_prevBestScore.userScore}";
-        }
-        else
-        {
-            _prevRating = new RatingStorage();
-            HighScoreText.text = "Best score: can be yours!";
-        }
-    }
-
-    void RecordHighScore()
-    {
-        ScoreStorage newScore = new ScoreStorage(_userName, _score);
-
-        if (_prevBestScore != null && (_prevBestScore.userScore < _score))
-        {
-            _prevRating.rating.Insert(0, newScore);
-        }
-        else
-        {
-            _prevRating.rating.Add(newScore);
-            _prevRating.rating = _prevRating.rating.OrderByDescending(x => x.userScore).ToList();
-        }
-
-        string json = JsonUtility.ToJson(_prevRating);
-        File.WriteAllText(_path + _jsonName, json);
-    }
-
     void AddPoint(int point)
     {
-        _score += point;
-        ScoreText.text = $"{_userName} score: {_score}";
+        _user.IncreaseScore(point);
+        ScoreText.text = $"{_user.Name} score: {_user.Score}";
     }
 
     public void GameOver()
     {
-        _isGameOver = true;
+        IsGameActive = false;
         GameOverText.SetActive(true);
-        RecordHighScore();
-        LoadHighScore();
+        _scoreManager.RecordHighScore();
+        _scoreManager.LoadHighScore();
     }
 }
