@@ -54,8 +54,6 @@ public class MainManager : MonoBehaviour
 
     private void Update()
     {
-        Ball.transform.localScale += Vector3.one;
-
         if (IsGameActive)
         {
             if (Input.GetKeyDown(KeyCode.Space))
